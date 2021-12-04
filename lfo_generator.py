@@ -76,7 +76,7 @@ class Lfo:
         self.offset = offset / 360 * 2 * np.pi
 
     def check_time(self, T0):
-        current_time = time.time() - T0
+        current_time = time.time() - T0.value
         return current_time
 
     def get_beat_number(self, T0):

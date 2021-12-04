@@ -13,6 +13,8 @@ from multiprocessing.managers import SyncManager
 import re
 import math
 import glob
+import msvcrt
+
 
 BPM = 140
 BEATS_PER_BAR = 4
@@ -107,17 +109,17 @@ class Worker:
                 return
 
 
-    def multiprocess_init(self, lfo_list, cpu_list, T0, timing_array, metronome_error, metronome_timestamp, out_queue, outport):
+    def multiprocess_init(self, lfo_list, cpu_list, T0, timing_array, metronome_error, metronome_timestamp, in_queue, out_queue, outport):
         #Initialise multiprocessing for main workers and message publishers
         for _ in range(MAX_MAIN_WORKERS):
-            p = multiprocessing.Process(target=self.worker_main, args=(lfo_list, cpu_list, T0, timing_array, metronome_error, out_queue, metronome_timestamp))
+            p = multiprocessing.Process(target=self.worker_main, args=(lfo_list, cpu_list, T0, timing_array, metronome_error, metronome_timestamp, in_queue, out_queue,))
             p.start()
         for _ in range(MAX_OUTPUT_WORKERS):
             q = threading.Thread(target=self.output_worker, args=(out_queue, outport))
             q.start()
         return 
 
-    def worker_main(self, lfo_list, cpu_list, T0, timing_array, metronome_error, out_queue, metronome_timestamp):
+    def worker_main(self, lfo_list, cpu_list, T0, timing_array, metronome_error, metronome_timestamp, in_queue, out_queue,):
         #Main worker initialisation and loop
         metronome_1 = hum.Metronome(0)
         human_1 = hum.Human(1)
@@ -171,13 +173,14 @@ if __name__=='__main__':
     metronome_error = manager.Value('f', 0)
     T0 = manager.Value('f', time.time())
     metronome_timestamp = manager.Value('f', 0)
-    control_message_dict = {'section':0}
+    section = 0
+    control_message_dict = {'section':section}
     control_dict = manager.dict(control_message_dict)
     print('Initialising multiprocessing...')
-    worker.multiprocess_init(lfo_list, cpu_list, T0, timing_array, metronome_error, metronome_timestamp, out_queue, outport)
+    worker.multiprocess_init(lfo_list, cpu_list, T0, timing_array, metronome_error, metronome_timestamp, in_queue, out_queue, outport)
     while 1:
-        metronome_1.count_in()
-        inport.callback = conductor_1.input_worker
+        metronome_1.count_in(inport)
+        inport.callback = worker.input_worker
         ALL_TRACKS_ARRAY = ALL_SECTIONS_ARRAY[section]
         print('program starting...')
         while 1:
@@ -186,9 +189,9 @@ if __name__=='__main__':
                 section_string = section + 1
                 print(f'Now playing section {section_string}')
                 ALL_TRACKS_ARRAY = ALL_SECTIONS_ARRAY[section]
-                run_section(BAR_LENGTH, ALL_TRACKS_ARRAY)
+                rsg.run_section(BAR_TIME, ALL_TRACKS_ARRAY, outport)
             else:
-                run_section(BAR_LENGTH, ALL_TRACKS_ARRAY)
+                rsg.run_section(BAR_TIME, ALL_TRACKS_ARRAY, outport)
             if msvcrt.kbhit():
                 if ord(msvcrt.getch()) == 27 :
                     break

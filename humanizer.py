@@ -20,7 +20,7 @@ SIXTEENTH_NOTE_TIME = BAR_TIME / 16
 MAX_MAIN_WORKERS = 50
 MAX_OUTPUT_WORKERS = 20
 #Input queue must be global for callback
-in_queue = Queue()
+#in_queue = Queue()
 
 def open_midi_ports():
     #Check if ports are available and set input port
@@ -223,7 +223,7 @@ class Metronome(Player):
     def __init__(self, midi_channel_number):
         super().__init__(midi_channel_number)
 
-    def count_in(self):
+    def count_in(self, inport):
         #Count in to sync program with ableton
         counter = 0
         bars = int(input('Enter number of count in bars: '))
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     metronome_timestamp = manager.Value('f', 0)
     print('Initialising multiprocessing...')
     conductor_1.multiprocess_init(T0, timing_array, metronome_error, out_queue, metronome_timestamp,)
-    metronome_1.count_in()
+    metronome_1.count_in(inport)
     inport.callback = conductor_1.input_worker
     print('program starting...') 
     while 1:

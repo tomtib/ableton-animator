@@ -113,20 +113,20 @@ def get_control_number(track):
     random_index = random.randint(0, len(track)-1)
     return track[random_index]
 
-def send_midi_message(control_number):
+def send_midi_message(control_number, outport):
     msg = mido.Message('control_change', channel=CHANNEL_NUMBER, control=control_number, value=127)
     outport.send(msg)
     return
 
-def run_section(BAR_LENGTH, ALL_TRACKS_ARRAY):
+def run_section(BAR_LENGTH, ALL_TRACKS_ARRAY, outport):
     t0 = time.time()
     for track in ALL_TRACKS_ARRAY:
         if track_change():
             control_number = get_control_number(track)
-            send_midi_message(control_number)
+            send_midi_message(control_number, outport)
         else :
             control_number = track[0]
-            send_midi_message(control_number)
+            send_midi_message(control_number, outport)
     t1 = time.time()
     sleep_time = BAR_LENGTH - (t0-t1)
     time.sleep(sleep_time)
