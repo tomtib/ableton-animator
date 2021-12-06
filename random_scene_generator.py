@@ -8,6 +8,7 @@ import random
 import msvcrt
 import re
 import numpy as np
+import os
 
 CHANNEL_NUMBER = 1
 
@@ -33,7 +34,7 @@ def open_midi_ports(MIDI_INPUT_PORT, MIDI_OUTPUT_PORT):
     print(f'Connected output to {MIDI_OUTPUT_PORT}')
     return inport, outport
 
-def sync_song(SECTION_CONTROL_LIST):
+def sync_song(SECTION_CONTROL_LIST, outport):
     CONTROL_NUMBER = 0
     SECTION_NUMBER = 1
     ALL_SECTIONS_ARRAY = []
@@ -41,26 +42,26 @@ def sync_song(SECTION_CONTROL_LIST):
     MAIN_MESSAGE = ''
     while MAIN_MESSAGE != 'q':
         print(f'\nSection {SECTION_NUMBER}')
-        ALL_TRACKS_ARRAY, CONTROL_NUMBER = assign_section(MAIN_MESSAGE, CONTROL_NUMBER, CHANNEL_NUMBER)
+        ALL_TRACKS_ARRAY, CONTROL_NUMBER = assign_section(MAIN_MESSAGE, CONTROL_NUMBER, CHANNEL_NUMBER, outport)
         ALL_SECTIONS_ARRAY.append(ALL_TRACKS_ARRAY)
         section_control_list.append(SECTION_CONTROL_LIST[SECTION_NUMBER - 1])
         SECTION_NUMBER = SECTION_NUMBER + 1
         MAIN_MESSAGE = input("Enter for next section or 'q' to finish sync : ")
     return ALL_SECTIONS_ARRAY, section_control_list
 
-def assign_section(MAIN_MESSAGE, CONTROL_NUMBER, CHANNEL_NUMBER):
+def assign_section(MAIN_MESSAGE, CONTROL_NUMBER, CHANNEL_NUMBER, outport):
     ALL_TRACKS_ARRAY = []
     TRACK_NUMBER = 1
     while MAIN_MESSAGE != 'q':
         print(f'Track {TRACK_NUMBER}')
-        TRACK_ARRAY, CONTROL_NUMBER = assign_clips_to_channels(CHANNEL_NUMBER, CONTROL_NUMBER)
+        TRACK_ARRAY, CONTROL_NUMBER = assign_clips_to_channels(CHANNEL_NUMBER, CONTROL_NUMBER, outport)
         ALL_TRACKS_ARRAY.append(TRACK_ARRAY)
         TRACK_NUMBER = TRACK_NUMBER + 1
         MAIN_MESSAGE = input("Enter for next track or 'q' to finish sync/next section : ")
         print('\n')
     return ALL_TRACKS_ARRAY, CONTROL_NUMBER
     
-def assign_clips_to_channels(CHANNEL_NUMBER, CONTROL_NUMBER):
+def assign_clips_to_channels(CHANNEL_NUMBER, CONTROL_NUMBER, outport):
     time.sleep(2)
     clips_message = 'n'
     counter = 0
@@ -85,7 +86,6 @@ def assign_clips_to_channels(CHANNEL_NUMBER, CONTROL_NUMBER):
 
 def load_sync_file(SECTION_CONTROL_LIST):
     section_control_list = []
-
     filepath = input('Please enter filepath : ')
     sync_file_obj = open(filepath, 'r')
     for line in sync_file_obj:
@@ -96,10 +96,13 @@ def load_sync_file(SECTION_CONTROL_LIST):
     return sync_file, section_control_list
 
 def write_sync_file(ALL_SECTIONS_ARRAY):
-    filepath = input('Please enter filepath : ')
-    np.save(filepath, ALL_SECTIONS_ARRAY)
-    sync_file.close
-    return 
+    song_name = input('Please enter the name of the song: ')
+    filepath = input('Please enter file name: ')
+    if not os.path.isdir(song_name):
+        os.mkdir(song_name)
+    with open(f"{song_name}/{filepath}", "w") as txt_file:
+        txt_file.write(str(ALL_SECTIONS_ARRAY))
+    return song_name
     
 #Program run functions
 

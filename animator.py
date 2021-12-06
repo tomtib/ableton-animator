@@ -26,15 +26,15 @@ MIDI_OUTPUT_PORT = 'loopMIDI Port 3'
 SECTION_CONTROL_LIST = [1, 4, 7, 10, 13, 16, 19, 22]
 RSG_CHANNEL_NO = 1
 LFO_CHANNEL_NO = 2
-MAX_MAIN_WORKERS = 4
-MAX_OUTPUT_WORKERS = 4
+MAX_MAIN_WORKERS = 40
+MAX_OUTPUT_WORKERS = 8
 #Input queue must be global for callback
 in_queue = Queue()
 
 def load_sync_file(file_dir, extension):
     file = glob.glob(file_dir + '/' + '*' + extension)
     if len(file) != 1:
-        raise ValueError('should be only one txt file in the current directory')
+        raise ValueError(f'should be one {extension} file in the current directory')
     file_obj = open(file[0], 'r')
     for line in file_obj:
         sync_file = eval(line)
@@ -93,7 +93,7 @@ class Worker:
                 metronome_error.value = metronome_1.beat_error(T0)
                 metronome_timestamp.value = time.time()
                 for lfo in lfo_list:
-                    msg = lfo.get_control_value(T0)
+                    msg = lfo.get_control_value(T0, LFO_CHANNEL_NO)
                     self.add_to_send_queue(msg, out_queue)
                 return
             if channel == 16 :
@@ -103,8 +103,8 @@ class Worker:
                     control_message_dict.update(control_message)
                     return control_message_dict
             else:
-                timing = cpu_list[channel-1].allocate_timing(timing_array, T0)
-                cpu_list[channel-1].time_message(timing, t1, metronome_error, metronome_timestamp)
+                timing = cpu_list[channel-2].allocate_timing(timing_array, T0)
+                cpu_list[channel-2].time_message(timing, t1, metronome_error, metronome_timestamp)
                 self.add_to_send_queue(msg, out_queue)
                 return
 
@@ -153,13 +153,18 @@ if __name__=='__main__':
         cpu_list = load_sync_file(file_dir, file_extension)    
     else :
         print('proceeding with manual sync...')
-        input("\nPress enter to start scene_gen sync.")
-        ALL_SECTIONS_ARRAY, section_control_list = rsg.sync_song(SECTION_CONTROL_LIST)
-        print('Sync finished.')
-        rsg.write_sync_file(ALL_SECTIONS_ARRAY)
+        msg = input("\nPress enter to start scene_gen sync or 'q' to skip: ")
+        if msg != 'q':
+            ALL_SECTIONS_ARRAY, section_control_list = rsg.sync_song(SECTION_CONTROL_LIST, outport)
+            print('Sync finished.')
+            file_dir = rsg.write_sync_file(ALL_SECTIONS_ARRAY)
+        else:
+            file_dir = input('Please enter file directory: ')
         input("\nPress enter to start lfo sync.")
+        file_extension = '.lfo'
         lfo_list = load_sync_file(file_dir, file_extension)
-        lfo.lfo_sync(LFO_CHANNEL_NUMBER, lfo_list)
+        lfo_gen.lfo_sync(LFO_CHANNEL_NO, lfo_list, outport)
+        file_extension = '.hum'
         cpu_list = load_sync_file(file_dir, file_extension)
     print('Initialising class instances...')
     metronome_1 = hum.Metronome(0)

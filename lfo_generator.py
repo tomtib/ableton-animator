@@ -4,6 +4,7 @@ import time
 #from collections import deque
 import numpy as np
 import re
+import msvcrt
 
 LFO_CHANNEL_NO = 15
 BPM = 140
@@ -49,11 +50,11 @@ def count_in():
         if counter >= total_beats:
             return
 
-def lfo_sync(CHANNEL_NUMBER, lfo_list):
+def lfo_sync(CHANNEL_NUMBER, lfo_list, outport):
     message = ''
     print('Press esc for next lfo')
+    control_number = 0
     for lfo in lfo_list:
-        control_number = 0
         print (f'...CC {control_number}')
         msg = mido.Message('control_change', channel=CHANNEL_NUMBER, control=control_number)
         while 1:
@@ -107,13 +108,13 @@ class Lfo:
         bars_passed_time = self.get_bar_number(T0)*BAR_TIME
         return bars_passed_time
 
-    def get_control_value(self, T0):
+    def get_control_value(self, T0, LFO_CHANNEL_NO):
         radians = ((self.get_beats_passed_time(T0) / BAR_TIME) * 2 * np.pi + self.offset) * self.frequency 
         amplitude = np.sin(radians)
         control_value = int(round((amplitude + 1) / 2 * 127))
         #print(control_value)
         #print(radians / (2 * np.pi) * 360)
-        msg = mido.Message('control_change', channel=LFO_CHANNEL_NO, control=self.control_number, value=127)
+        msg = mido.Message('control_change', channel=LFO_CHANNEL_NO, control=self.control_number, value=control_value)
         return msg
 
     def map_midi(self):
