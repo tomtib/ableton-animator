@@ -18,7 +18,7 @@ BEAT_TIME = 60/BPM
 BAR_TIME = BEAT_TIME * BEATS_PER_BAR
 SIXTEENTH_NOTE_TIME = BAR_TIME / 16
 MAX_MAIN_WORKERS = 50
-MAX_OUTPUT_WORKERS = 20
+MAX_OUTPUT_WORKERS = 30
 #Input queue must be global for callback
 #in_queue = Queue()
 
@@ -273,7 +273,6 @@ class Human(Player):
 
 class Cpu(Player):
 
-    previous_mean = 0
     
     def __init__(self, midi_channel_number, listening, consistency):
         super().__init__(midi_channel_number)
@@ -290,17 +289,31 @@ class Cpu(Player):
             (low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
         
 
-    def allocate_timing(self, timing_array, T0):
+    def allocate_timing(self, timing_array, previous_beat, T0,):
         #Return random timing based on distribution
         beat_number, beat_offset = self.get_timing(T0)
         mean = timing_array[beat_number][2]
-        self.previous_mean = mean + self.previous_mean * self.listening
-        sd = timing_array[beat_number][4]
+        previous_beat_proxy = previous_beat[0]
+        if previous_beat_proxy > beat_number:
+            corrected_mean = mean + (previous_beat[1] / (beat_number + 16 - previous_beat_proxy)) * self.listening
+        if previous_beat_proxy < beat_number:
+            corrected_mean = mean + (previous_beat[1] / (beat_number - previous_beat_proxy)) * self.listening
+        else:
+            corrected_mean = mean
+        prev_beat = print(f"prev_beat = {previous_beat[0]}, curr_beat = {beat_number}")
+        sd = timing_array[beat_number][4] / self.consistency
         low = timing_array[beat_number][0]
         upp = timing_array[beat_number][1]
-        timing_dist = self.get_truncated_normal(self.previous_mean, sd, low, upp)
-        timing = timing_dist.rvs()
-        return timing
+        timing_dist = self.get_truncated_normal(corrected_mean, sd, low, upp)
+        try:
+            timing = timing_dist.rvs()
+            previous_beat[0] = beat_number
+            previous_beat[1] = timing
+            return timing
+        except ValueError:
+            print("VALUE_ERROR")
+            print(f"corrected_mean={corrected_mean}, sd={sd}, low={low}, upp={upp}, prev_beat = {previous_beat[0]}, curr_beat = {beat_number}")
+        return 0
 
     def time_message(self, timing, t1, metronome_error, metronome_timestamp):
         #Adjust timing of midi message according to calculations
